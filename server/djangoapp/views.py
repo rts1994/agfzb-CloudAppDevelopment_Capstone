@@ -3,11 +3,12 @@ from django.http import HttpResponseRedirect, HttpResponse
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404, render, redirect
 # from .models import related models
+from .models import CarDealer, CarMake, CarModel, DealerReview
 # from .restapis import related methods
 from django.contrib.auth import login, logout, authenticate
 from django.contrib import messages
 from datetime import datetime
-from .restapis import get_request, get_dealers_from_cf, get_dealer_reviews_from_cf
+from .restapis import get_request, get_dealers_from_cf, get_dealer_reviews_from_cf, get_dealer_by_id_from_cf
 import logging
 import json
 
@@ -92,6 +93,7 @@ def get_dealerships(request):
 
     if request.method == "GET":
         #url = "https://9aa2e73d-04a9-491c-9002-b01932eea12d-bluemix.cloudantnosqldb.appdomain.cloud/dealerships/dealer-get"
+        #og
         url = "https://us-east.functions.appdomain.cloud/api/v1/web/c0aa41f6-e40b-423d-aad3-bcbeebb7ab6b/default/get-dealership"
         # Get dealers from the URL
         dealerships = get_dealers_from_cf(url)
@@ -132,33 +134,76 @@ def get_dealer_details(request, dealer_id):
 # Create a `add_review` view to submit a review
 # def add_review(request, dealer_id):
 # ...
+# def add_review(request, dealer_id):
+#     print("********************add_review!!!!: ")
+#     print(dealer_id)
+#     print(request.method)
+#     if request.method == "GET":
+#         context = {}
+#         context['dealer_id'] = dealer_id
+#         context['dealer'] = get_dealer_detail_infos(dealer_id)
+#         context['cars'] = CarModel.objects.all()
+#         print("^^^^^^^^^^^^HELLO^^^^^^^^^^^^^")
+#         print(context)
+#         return render(request, 'djangoapp/add_review.html', context)
+#     if request.method == "POST":
+#         url = "https://5bde1960.us-south.apigw.appdomain.cloud/api/review-post"
+#         payload = {}
+#         payload['name'] = request.POST['username']
+#         payload['dealership'] = dealer_id
+#         payload['review'] = request.POST['review']
+#         payload['purchase'] = request.POST['purchase']
+#         payload['purchase_date'] = request.POST['purchase_date']
+#         car = CarModel.objects.get(id = request.POST['car'])
+#         if car:
+#             payload['car_make'] = car.make.name
+#             payload['car_model'] = car.name
+#             payload['car_year'] = car.year.strftime("%Y")
+#         store_review(url, payload)
+#     return redirect('djangoapp:dealer_details', dealer_id = dealer_id)
+
+
 def add_review(request, dealer_id):
-    print("********************add_review!!!!: ")
-    print(dealer_id)
-    if request.method == "GET":
-        context = {}
-        context['dealer_id'] = dealer_id
-        context['dealer'] = get_dealer_detail_infos(dealer_id)
-        context['cars'] = CarModel.objects.all()
+    context = {}
+    # dealer_url = "https://us-south.functions.appdomain.cloud/api/v1/web/CD0201-xxx-nodesample123_Tyler/dealership-package/get-dealerships"
+    dealer_url = "https://us-east.functions.appdomain.cloud/api/v1/web/c0aa41f6-e40b-423d-aad3-bcbeebb7ab6b/default/get-dealership"
+    dealer = get_dealer_by_id_from_cf(dealer_url, dealer_id)
+    context["dealer"] = dealer
+    if request.method == 'GET':
+        # Get cars for the dealer
+        cars = CarModel.objects.all()
+        print(cars)
+        context["cars"] = cars
+        print("carsssssssssssssssssssss")
         return render(request, 'djangoapp/add_review.html', context)
-    if request.method == "POST":
-        url = "https://5bde1960.us-south.apigw.appdomain.cloud/api/review-post"
-        payload = {}
-        payload['name'] = request.POST['username']
-        payload['dealership'] = dealer_id
-        payload['review'] = request.POST['review']
-        payload['purchase'] = request.POST['purchase']
-        payload['purchase_date'] = request.POST['purchase_date']
-        car = CarModel.objects.get(id = request.POST['car'])
-        if car:
-            payload['car_make'] = car.make.name
-            payload['car_model'] = car.name
-            payload['car_year'] = car.year.strftime("%Y")
-        store_review(url, payload)
-    return redirect('djangoapp:dealer_details', dealer_id = dealer_id)
+    elif request.method == 'POST':
+        if request.user.is_authenticated:
+            username = request.user.username
+            print(request.POST)
+            payload = dict()
+            car_id = request.POST["car"]
+            car = CarModel.objects.get(pk=car_id)
+            payload["time"] = datetime.utcnow().isoformat()
+            payload["name"] = username
+            payload["dealership"] = id
+            payload["id"] = id
+            payload["review"] = request.POST["content"]
+            payload["purchase"] = False
+            if "purchasecheck" in request.POST:
+                if request.POST["purchasecheck"] == 'on':
+                    payload["purchase"] = True
+            payload["purchase_date"] = request.POST["purchasedate"]           
+            payload["car_model"] = car.name
+            new_payload = {}
+            new_payload["review"] = payload
+            # review_post_url = "https://us-south.functions.appdomain.cloud/api/v1/web/CD0201-xxx-nodesample123_Tyler/dealership-package/post-review"
+            review_post_url = "https://us-east.functions.appdomain.cloud/api/v1/web/c0aa41f6-e40b-423d-aad3-bcbeebb7ab6b/default/post-review"
+            post_request(review_post_url, new_payload, dealer_id)
+        return redirect("djangoapp:dealer_details", dealer_id)
 
-
-# def get_dealer_detail_infos(dealer_id):
-#     url = "https://5bde1960.us-south.apigw.appdomain.cloud/api/dealership"
-#     dealerships = get_dealers_from_cf(url)
-#     return next(filter(lambda x: x.id == dealer_id, dealerships))
+def get_dealer_detail_infos(dealer_id):
+    url = "https://us-east.functions.appdomain.cloud/api/v1/web/c0aa41f6-e40b-423d-aad3-bcbeebb7ab6b/default/get-dealership"
+    dealerships = get_dealers_from_cf(url)
+    print("delaerhsup")
+    print(dealerships)
+    return next(filter(lambda x: x.id == dealer_id, dealerships))
