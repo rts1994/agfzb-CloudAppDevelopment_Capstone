@@ -28,7 +28,21 @@ def get_request(url, **kwargs):
 
 # Create a `post_request` to make HTTP POST requests
 # e.g., response = requests.post(url, params=kwargs, json=payload)
-
+def post_request(url, **kwargs):
+    print(kwargs)
+    print("POST to {} ".format(url))
+    try:
+        # Call post method of requests library with URL and parameters
+        payload = kwargs.pop("payload")
+        response = requests.post(url, headers={'Content-Type': 'application/json'},
+                                            params=kwargs, json=payload)
+    except:
+        # If any error occurs
+        print("Network exception occurred")
+    status_code = response.status_code
+    print("With status {} ".format(status_code))
+    json_data = json.loads(response.text)
+    return json_data
 
 # Create a get_dealers_from_cf method to get dealers from a cloud function
 # def get_dealers_from_cf(url, **kwargs):
@@ -103,21 +117,24 @@ def get_dealers_from_cf(url, **kwargs):
 def get_dealer_reviews_from_cf(url, **kwargs):
     results = []
     json_result = get_request(url)
+
     if json_result:
         reviews = json_result[0]["doc"]["reviews"]
-        # print(reviews)
         for review_doc in reviews:
+            print("start")
+
             review_obj = DealerReview(
-                dealership=review_doc["dealership"],
-                name=review_doc["name"],
-                purchase=review_doc["purchase"],
-                review=review_doc["review"],
-                purchase_date=review_doc["purchase_date"],
-                car_make=review_doc["car_make"],
-                car_model=review_doc["car_model"],
-                car_year=review_doc["car_year"],
-                sentiment=analyze_review_sentiments(review_doc["review"]),
-                id=review_doc["id"]
+                dealership=review_doc.get("dealership"),
+                name=review_doc.get("name"),
+                purchase=review_doc.get("purchase"),
+                review=review_doc.get("review"),
+                purchase_date=review_doc.get("purchase_date"),
+                car_make=review_doc.get("car_make"),
+                car_model=review_doc.get("car_model"),
+                car_year=review_doc.get("car_year"),
+                # sentiment=analyze_review_sentiments(review_doc.get("review")),
+                sentiment=review_doc.get("review"),
+                id=review_doc.get("id")
             )
             results.append(review_obj)
 
@@ -128,9 +145,8 @@ def get_dealer_reviews_from_cf(url, **kwargs):
 # - Call get_request() with specified arguments
 # - Get the returned sentiment label such as Positive or Negative
 def analyze_review_sentiments(text):
-    # this is what we're doing next!!
-    url = "https://api.us-south.natural-language-understanding.watson.cloud.ibm.com/instances/1d6d2a23-a3c3-4ecb-bb1d-1d3eebb6a8c6/v1/analyze?version=2021-03-25"
-    api_key = "ul4LUhas5N_IUWIGV1wfauUZ-8W1f9JfxbOgM_2ve79j"
+    url = "https://api.us-south.natural-language-understanding.watson.cloud.ibm.com/instances/73b09635-c5e3-4048-9d48-59b1788a7f09"
+    api_key = "ZqQf7VC2jDWTFqnvvxoknZoUp2k-rUGHI2euoApnYtkP"
     params = {
         "text": text,
         "features": {
